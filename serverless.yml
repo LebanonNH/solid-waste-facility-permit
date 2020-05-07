@@ -58,14 +58,14 @@ provider:
 #    - exclude-me-dir/**
 
 functions:
-  hello:
-    handler: handler.hello
+  permit:
+    handler: pdf.permit
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
 #    Check the event documentation for details
     events:
       - http:
-          path: echo
+          path: create_permit
           method: post
 #      - websocket: $connect
 #      - s3: ${env:BUCKET}

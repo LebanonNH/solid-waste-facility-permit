@@ -169,3 +169,10 @@ var/
 
 # Serverless directories
 .serverless
+
+# Enviromental Variables
+.env
+.vscode
+.vscode/*
+.venv
+.venv/*
