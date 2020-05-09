@@ -7,18 +7,11 @@ import json
 from fpdf import FPDF
 from dotenv import load_dotenv
 from barcode.writer import ImageWriter
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.automap import automap_base
+from model import session, User, City
+from jinja2 import Environment, FileSystemLoader
 
 
-load_dotenv()
-engine = create_engine(os.getenv('DB_PATH'))
-Base = automap_base()
-Base.prepare(engine, reflect=True)
-User = Base.classes.user
-City = Base.classes.city
-session = Session(engine)
+
 
 class Citizen():
     def __init__(self, first_name, surname, city, email):
@@ -46,7 +39,9 @@ class Citizen():
 
     def __add_to_db(self):
         city_id = session.query(City).filter(City.city_name == self.city.title()).first().id 
-        new_user = User(self.barcode, self.expiration, self.first_name, self.surname, city_id)
+        expiration_date = datetime.datetime.strptime(self.expiration, "%m-%d-%Y")
+        new_user = User(self.barcode, expiration_date, self.first_name, self.surname, city_id)
+
         session.add(new_user)
         session.commit()
         
@@ -77,9 +72,9 @@ def permit(event, context):
     city = body['city']
     citizen = Citizen(first_name, surname, city, email)
     pdf_path = create_pdf(citizen)
-    msg = 'Created permit for {}, with barcode number {} and expiration of {} and emailed it to {}'.format(name.title(), citizen.barcode, citizen.expiration, email)
+    msg = 'Created permit for {} {}, with barcode number {} and expiration of {} and emailed it to {}'.format(first_name.title(), surname.title(), citizen.barcode, citizen.expiration, email)
     print(msg)
-    send_message(email, pdf_path)
+    send_message(citizen, pdf_path)
     return {
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json'},
@@ -120,17 +115,21 @@ def create_barcode(code):
     filename = ean.save('/tmp/barcode')
     return filename 
 
-def send_message(email, file):
+def send_message(citizen, file):
     mg_domain = os.getenv('MG_DOMAIN')
     api_key = os.getenv('MG_API_KEY')
     url = "https://api.mailgun.net/v3/" + mg_domain + "/messages"
+
+    env = Environment(loader=FileSystemLoader('.'), autoescape=True)
+    template = env.get_template('email.html')
+
 
     return requests.post(
         url,
         auth=("api", api_key),
         files=[("attachment", ("permit.pdf", open(file,"rb").read()))],
         data={"from": "City of Lebanon Solid Waste <solid.waste@lebanonnh.gov>",
-              "to": email,
+              "to": citizen.email,
               "subject": "Your Landfill Permit",
               "text": "Here is your permit",
-              "html": "<html>Here is your permit!</html>"})
+              "html": template.render(citizen=citizen)})

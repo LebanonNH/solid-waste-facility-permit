@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <p>Hello {{ citizen.first_name }} {{ citizen.surname }},</p>
+        <p>Your application for a Solid Waste Landfill Permit has been succesfully processed by the city.</p>
+        <p>You will find your permit attached to this email. Please either print it or save it to your device.</p>
+        <p>Your permit number is <strong>{{ citizen.barcode }}</strong>. Your permit is good until {{ citizen.expiration }}.</p>
+        <br>
+        <p>Lebanon Solid Waste Facility</p>
+        <p>370 Plainfield Road, West Lebanon, NH 03784</p>
+
+        <p>603-298-6486 | LebanonNH.gov/SolidWaste</p>
+    </body>
+</html>
