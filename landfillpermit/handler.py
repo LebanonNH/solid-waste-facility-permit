@@ -1,6 +1,7 @@
 import re
 import json
 from landfillpermit.model import session, City
+from landfillpermit import permit
 
 def issue_permit(event, context):
     errors = []
@@ -25,6 +26,6 @@ def issue_permit(event, context):
             'headers': {'Content-Type': 'application/json'},
             'errors': errors
         }
-    resp = landfillpermit.permit(first_name, surname, email, city)
+    resp = permit(first_name, surname, email, city)
     return resp
        
