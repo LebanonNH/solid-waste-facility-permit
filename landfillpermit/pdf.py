@@ -128,24 +128,9 @@ def send_message(citizen, file):
               "text": "Here is your permit",
               "html": template.render(citizen=citizen)})
 
-def permit(event, context):
-    body = json.loads(event['body'])
-    first_name = body['first_name']
-    surname = body['surname']
-    email = body['email']
-    city = body['city']
+def permit(body, first_name, surname, email, city):
     citizen = Citizen(first_name, surname, city, email)
-    try:
-        citizen.add_to_db()
-    except ValueError:
-        print("A user with this barcode already exists in the database")
-        msg = "A user with this barcode already exists in the database"
-        return {
-            'statusCode': 400,
-            'headers': {'Content-Type': 'application/json'},
-            'body': msg
-            }
-        
+    # citizen.add_to_db()
     pdf_path = create_pdf(citizen)
     msg = 'Created permit for {} {}, with barcode number {} and expiration of {} and emailed it to {}'.format(first_name.title(), surname.title(), citizen.barcode, citizen.expiration, email)
     print(msg)
