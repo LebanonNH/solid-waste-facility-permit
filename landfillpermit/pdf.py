@@ -1,4 +1,5 @@
 import datetime
+import os
 import requests
 import barcode
 import random
@@ -64,7 +65,7 @@ class CustomPDF(FPDF):
 
     def header(self):
         # Set up a logo
-        self.image('col-logo.png', 82.95, 60.8, w=50)
+        self.image(os.path.dirname(os.path.abspath(__file__)) + '/col-logo.png', 82.95, 60.8, w=50)
         self.set_font('Arial', 'B', 15)
 
         # Add an address
@@ -114,8 +115,8 @@ def create_barcode(code):
 def send_message(citizen, file):
     url = "https://api.mailgun.net/v3/" + mg_domain + "/messages"
 
-    env = Environment(loader=FileSystemLoader('.'), autoescape=True)
-    template = env.get_template('email.html')
+    env = Environment(loader=FileSystemLoader(os.path.dirname(os.path.abspath(__file__))), autoescape=True)
+    template = env.get_template('/email.html')
 
 
     return requests.post(
@@ -128,7 +129,7 @@ def send_message(citizen, file):
               "text": "Here is your permit",
               "html": template.render(citizen=citizen)})
 
-def permit(body, first_name, surname, email, city):
+def permit(first_name, surname, email, city):
     citizen = Citizen(first_name, surname, city, email)
     # citizen.add_to_db()
     pdf_path = create_pdf(citizen)

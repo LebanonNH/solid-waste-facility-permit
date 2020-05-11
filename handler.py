@@ -1,7 +1,7 @@
 import re
 import json
 from landfillpermit.model import session, City
-from landfillpermit import permit
+from landfillpermit.pdf import permit
 
 def issue_permit(event, context):
     errors = []
