@@ -1,5 +1,4 @@
 import datetime
-import os
 import requests
 import barcode
 import random
@@ -7,8 +6,9 @@ import json
 from fpdf import FPDF
 from dotenv import load_dotenv
 from barcode.writer import ImageWriter
-from model import session, User, City
+from landfillpermit.model import session, User, City
 from jinja2 import Environment, FileSystemLoader
+from landfillpermit import mg_domain, mg_api_key
 
 
 
@@ -22,7 +22,6 @@ class Citizen():
         expiration = datetime.datetime.now() + datetime.timedelta(days=365)
         self.expiration = expiration.date().strftime("%m-%d-%Y") 
         self.barcode = self.__verify_barcode(str(random.randint(99999999999,1000000000000)))
-        self.__add_to_db()
 
     def __verify_barcode(self, barcode):
         query = session.query(User).filter(User.barcode == barcode).first()
@@ -37,7 +36,20 @@ class Citizen():
         else:
             return query.city_name 
 
-    def __add_to_db(self):
+    def add_to_db(self, barcode = None, city = None, expiration = None, first_name = None, surname = None):
+        if barcode == None:
+            barcode = self.barcode 
+        if city == None:
+            city = self.city
+        if expiration == None:
+            expiration = self.expiration 
+        if first_name == None:
+            first_name = self.first_name 
+        if surname == None:
+            surname = self.surname
+        query = session.query(User).filter(User.barcode == self.barcode).first()
+        if query:
+            raise ValueError("User has already exists database")
         city_id = session.query(City).filter(City.city_name == self.city.title()).first().id 
         expiration_date = datetime.datetime.strptime(self.expiration, "%m-%d-%Y")
         new_user = User(self.barcode, expiration_date, self.first_name, self.surname, city_id)
@@ -64,22 +76,6 @@ class CustomPDF(FPDF):
         # Line break
         self.ln(20)
 
-def permit(event, context):
-    body = json.loads(event['body'])
-    first_name = body['first_name']
-    surname = body['surname']
-    email = body['email']
-    city = body['city']
-    citizen = Citizen(first_name, surname, city, email)
-    pdf_path = create_pdf(citizen)
-    msg = 'Created permit for {} {}, with barcode number {} and expiration of {} and emailed it to {}'.format(first_name.title(), surname.title(), citizen.barcode, citizen.expiration, email)
-    print(msg)
-    send_message(citizen, pdf_path)
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json'},
-        'body': msg
-        }
 
 def create_pdf(citizen):
     name = citizen.first_name.upper() + " " + citizen.surname.upper()
@@ -116,8 +112,6 @@ def create_barcode(code):
     return filename 
 
 def send_message(citizen, file):
-    mg_domain = os.getenv('MG_DOMAIN')
-    api_key = os.getenv('MG_API_KEY')
     url = "https://api.mailgun.net/v3/" + mg_domain + "/messages"
 
     env = Environment(loader=FileSystemLoader('.'), autoescape=True)
@@ -126,10 +120,38 @@ def send_message(citizen, file):
 
     return requests.post(
         url,
-        auth=("api", api_key),
+        auth=("api", mg_api_key),
         files=[("attachment", ("permit.pdf", open(file,"rb").read()))],
         data={"from": "City of Lebanon Solid Waste <solid.waste@lebanonnh.gov>",
               "to": citizen.email,
               "subject": "Your Landfill Permit",
               "text": "Here is your permit",
               "html": template.render(citizen=citizen)})
+
+def permit(event, context):
+    body = json.loads(event['body'])
+    first_name = body['first_name']
+    surname = body['surname']
+    email = body['email']
+    city = body['city']
+    citizen = Citizen(first_name, surname, city, email)
+    try:
+        citizen.add_to_db()
+    except ValueError:
+        print("A user with this barcode already exists in the database")
+        msg = "A user with this barcode already exists in the database"
+        return {
+            'statusCode': 400,
+            'headers': {'Content-Type': 'application/json'},
+            'body': msg
+            }
+        
+    pdf_path = create_pdf(citizen)
+    msg = 'Created permit for {} {}, with barcode number {} and expiration of {} and emailed it to {}'.format(first_name.title(), surname.title(), citizen.barcode, citizen.expiration, email)
+    print(msg)
+    send_message(citizen, pdf_path)
+    return {
+        'statusCode': 200,
+        'headers': {'Content-Type': 'application/json'},
+        'body': msg
+        }

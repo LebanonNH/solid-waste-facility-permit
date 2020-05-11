@@ -1,12 +1,8 @@
-import os
-from sqlalchemy import create_engine, ForeignKey, Column, Date, String, Integer, DateTime, Numeric
+from sqlalchemy import ForeignKey, Column, Date, String, Integer, DateTime, Numeric
 from sqlalchemy.orm import Session, relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
-from dotenv import load_dotenv
+from landfillpermit import engine
 
-load_dotenv()
-
-engine = create_engine(os.getenv('DB_PATH'))
 
 Base = declarative_base()
 class City(Base):
