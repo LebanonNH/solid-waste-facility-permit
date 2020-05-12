@@ -6,35 +6,23 @@ provider:
     - apiKey
   stage: dev
   region: us-east-2
+  memorySize: 256
+  # vpc:
+  #   securityGroupIds:
+  #     - sg-0902c3c2a4a96394b
+  #   subnetIds:
+  #     - subnet-32bbd17f
+  #     - subnet-de6a9eb6
+  #     - subnet-c8664cb3
+  environment:
+    DB_PATH: 'landfill-permit.cmu6qepwg8ma.us-east-2.rds.amazonaws.com'
+    DB_NAME: 'landfill'
+    DB_TYPE: 'mysql'
+    DB_DRIVER: 'pymysql'
+    DB_USER: 'landfill'
+    MG_DOMAIN: 'mg.leblibrary.com'
 
-# you can add statements to the Lambda function's IAM Role here
-#  iamRoleStatements:
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:ListBucket"
-#      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:PutObject"
-#      Resource:
-#        Fn::Join:
-#          - ""
-#          - - "arn:aws:s3:::"
-#            - "Ref" : "ServerlessDeploymentBucket"
-#            - "/*"
 
-# you can define service wide environment variables here
-#  environment:
-#    variable1: value1
-
-# you can add packaging information here
-#package:
-#  include:
-#    - include-me.py
-#    - include-me-dir/**
-#  exclude:
-#    - exclude-me.py
-#    - exclude-me-dir/**
 package:
   exclude:
     - .vscode/**

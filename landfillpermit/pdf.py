@@ -7,7 +7,7 @@ import json
 from fpdf import FPDF
 from dotenv import load_dotenv
 from barcode.writer import ImageWriter
-from landfillpermit.model import session, User, City
+from landfillpermit.models import session, User, City
 from jinja2 import Environment, FileSystemLoader
 from landfillpermit import mg_domain, mg_api_key
 
@@ -16,19 +16,20 @@ from landfillpermit import mg_domain, mg_api_key
 
 class Citizen():
     def __init__(self, first_name, surname, city, email):
-        self.first_name = first_name
-        self.surname = surname
-        self.city = self.__verify_city(city)
+        self.first_name = first_name.title()
+        self.surname = surname.title()
+        self.city = self.__verify_city(city).title()
         self.email = email
         expiration = datetime.datetime.now() + datetime.timedelta(days=365)
         self.expiration = expiration.date().strftime("%m-%d-%Y") 
         self.barcode = self.__verify_barcode(str(random.randint(99999999999,1000000000000)))
 
     def __verify_barcode(self, barcode):
-        query = session.query(User).filter(User.barcode == barcode).first()
+        full_code = create_barcode(barcode)
+        query = session.query(User).filter(User.barcode == full_code).first()
         if query:
             self.__verify_barcode(str(random.randint(99999999999,1000000000000)))
-        return barcode
+        return full_code
     
     def __verify_city(self, city):
         query = session.query(City).filter(City.city_name == city.title()).first()
@@ -56,6 +57,7 @@ class Citizen():
         new_user = User(self.barcode, expiration_date, self.first_name, self.surname, city_id)
 
         session.add(new_user)
+        print("New user added to session")
         session.commit()
         
 
@@ -71,8 +73,8 @@ class CustomPDF(FPDF):
         # Add an address
         self.ln(75)
         self.set_font("times", "", 20)
-        self.cell(0, 10, 'Residential'.upper(), align="C", ln=1)
-        self.cell(0, 10, 'Landfill Permit'.upper(), align="C", ln=1)
+        self.cell(0, 10, 'SOLID WASTE'.upper(), align="C", ln=1)
+        self.cell(0, 10, 'FACILITY PERMIT'.upper(), align="C", ln=1)
 
         # Line break
         self.ln(20)
@@ -87,7 +89,7 @@ def create_pdf(citizen):
     pdf.set_font('Times', '', 12)
     pdf.set_line_width(5)
     pdf.rect(57.15,50.8,101.6,177.8)
-    pdf.image(create_barcode(citizen.barcode), 60.45, 110.8, 95)
+    pdf.image('/tmp/barcode.png', 60.45, 110.8, 95)
     pdf.ln(45)
     pdf.cell(50)
     pdf.cell(100, txt="Issued to: {}".format(name, ln=1))
@@ -109,35 +111,50 @@ def create_pdf(citizen):
 
 def create_barcode(code):
     ean = barcode.get('ean13', code, writer=ImageWriter())
-    filename = ean.save('/tmp/barcode')
-    return filename 
+    ean.save('/tmp/barcode')
+    return ean.get_fullcode() 
 
 def send_message(citizen, file):
     url = "https://api.mailgun.net/v3/" + mg_domain + "/messages"
+    try:
+        path = os.path.join(os.getcwd(), 'landfillpermit')
+        env = Environment(loader=FileSystemLoader(path), autoescape=True)
+    except:
+        print("couldn't set template env")
+    try:
+        template = env.get_template('email.html')
+    except:
+        print("couldn't get template")
 
-    env = Environment(loader=FileSystemLoader(os.path.dirname(os.path.abspath(__file__))), autoescape=True)
-    template = env.get_template('/email.html')
-
-
-    return requests.post(
-        url,
-        auth=("api", mg_api_key),
-        files=[("attachment", ("permit.pdf", open(file,"rb").read()))],
-        data={"from": "City of Lebanon Solid Waste <solid.waste@lebanonnh.gov>",
-              "to": citizen.email,
-              "subject": "Your Landfill Permit",
-              "text": "Here is your permit",
-              "html": template.render(citizen=citizen)})
+    try:
+        req = requests.post(
+            url,
+            auth=("api", mg_api_key),
+            files=[("attachment", ("permit.pdf", open(file,"rb").read()))],
+            timeout=1,
+            data={"from": "City of Lebanon Solid Waste <solid.waste@lebanonnh.gov>",
+                "to": citizen.email,
+                "subject": "Your Landfill Permit",
+                "text": "Here is your permit",
+                "html": template.render(citizen=citizen)})
+        return req.status_code
+    except:
+        print("Something went wrong with the post request")
 
 def permit(first_name, surname, email, city):
     citizen = Citizen(first_name, surname, city, email)
-    # citizen.add_to_db()
     pdf_path = create_pdf(citizen)
-    msg = 'Created permit for {} {}, with barcode number {} and expiration of {} and emailed it to {}'.format(first_name.title(), surname.title(), citizen.barcode, citizen.expiration, email)
+    msg = 'Created permit for {} {} and emailed it to {}'.format(first_name.title(), surname.title(), email)
     print(msg)
+    citizen.add_to_db()
     send_message(citizen, pdf_path)
+    body = {
+        'message': msg, 
+        'barcode': citizen.barcode,
+        'expiration': citizen.expiration
+        }
     return {
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json'},
-        'body': msg
+        'body': json.dumps(body)
         }
