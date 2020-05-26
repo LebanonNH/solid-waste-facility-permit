@@ -9,6 +9,7 @@ def issue_permit(event, context):
         body = json.loads(event['body'])
     except:
         errors.append("Request JSON is malformed")
+    print(body)
     first_name = body['first_name']
     surname = body['surname']
     email = body['email']

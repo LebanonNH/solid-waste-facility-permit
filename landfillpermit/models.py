@@ -3,7 +3,7 @@ from sqlalchemy import Column, Date, BigInteger, Integer, String, DateTime, Nume
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, backref
 from landfillpermit.data import fees, cities
-from landfillpermit import db_url
+from landfillpermit import db_url, root_user, root_password
 import pymysql
 
 
@@ -16,7 +16,7 @@ class City(Base):
     __tablename__ = "city"
  
     id = Column(Integer, primary_key=True)
-    city_name = Column(String(40))
+    city_name = Column(String(40), nullable=False)
     users = relationship("User", backref="city")
 
     #----------------------------------------------------------------------
@@ -30,19 +30,21 @@ class User(Base):
     __tablename__ = "user"
  
     barcode = Column(BigInteger, primary_key=True)
-    expiration_date = Column(Date)
-    first_name = Column(String(40))
-    last_name = Column(String(40))
-    city_id = Column(Integer, ForeignKey("city.id"))
+    expiration_date = Column(Date, nullable=False)
+    first_name = Column(String(40), nullable=False)
+    last_name = Column(String(40), nullable=False)
+    city_id = Column(Integer, ForeignKey("city.id"), nullable=False)
+    email = Column(db.String(80), nullable=False)
     transactions = relationship("Transactions")
 
     #----------------------------------------------------------------------
-    def __init__(self, barcode, expiration_date, first_name, last_name, city_id):
+    def __init__(self, barcode, expiration_date, first_name, last_name, email, city_id):
         """"""
         self.barcode = barcode
         self.expiration_date = expiration_date
         self.first_name = first_name
         self.last_name = last_name
+        self.email = email
         self.city_id = city_id
 
 
@@ -51,17 +53,19 @@ class Fees(Base):
     __tablename__ = "fees"
  
     id = Column(Integer, primary_key=True)
-    name = Column(String(120))
+    name = Column(String(120), nullable=False)
+    weight = Column(Numeric, default=200, nullable=False)
     unit_of_measure = Column(String(40))
-    fees_per_unit = Column(Numeric)
+    fees_per_unit = Column(Numeric, nullable=False)
     fees = relationship("Transactions_Fees")
 
     #----------------------------------------------------------------------
-    def __init__(self, name, unit_of_measure, fees_per_unit):
+    def __init__(self, name, unit_of_measure="", fees_per_unit, weight=200):
         """"""
         self.name = name
         self.unit_of_measure = unit_of_measure
         self.fees_per_unit = fees_per_unit
+        self.weight=weight
 
 
 class Transactions(Base):
@@ -69,8 +73,8 @@ class Transactions(Base):
     __tablename__ = "transactions"
  
     id = Column(Integer, primary_key=True)
-    barcode = Column(BigInteger, ForeignKey("user.barcode"))
-    transaction_timestamp = Column(DateTime)
+    barcode = Column(BigInteger, ForeignKey("user.barcode"), nullable=False)
+    transaction_timestamp = Column(DateTime, nullable=False)
     fees = relationship("Transactions_Fees")
 
     #----------------------------------------------------------------------
@@ -84,9 +88,9 @@ class Transactions_Fees(Base):
     __tablename__ = "transactions_fees"
  
     id = Column(Integer, primary_key=True)
-    transactions_id = Column(Integer, ForeignKey("transactions.id"))
-    fees_id = Column(Integer, ForeignKey("fees.id"))
-    quantity = Column(Integer)
+    transactions_id = Column(Integer, ForeignKey("transactions.id"), nullable=False)
+    fees_id = Column(Integer, ForeignKey("fees.id"), nullable=False)
+    quantity = Column(Integer, nullable=False)
     
     #----------------------------------------------------------------------
     def __init__(self, transactions_id, fees_id, quantity):
@@ -95,6 +99,19 @@ class Transactions_Fees(Base):
         self.fees_id = fees_id
         self.quantity = quantity
 
+class Employee(Base):
+    """"""
+    __tablename__ = "transactions_fees"
+ 
+    id = Column(Integer, primary_key=True)
+    username = Column(String(120), unique=True, nullable=False)
+    password = Column(String(60), nullable=False)
+    
+    #----------------------------------------------------------------------
+    def __init__(self, username, password):
+        """"""
+        self.username = username
+        self.password = password
 
 # create tables
 def create_db():
@@ -104,11 +121,15 @@ def create_db():
 def populate_data():
 
     for key, value in fees.items():
-        new_fee = Fees(key, value['unit'], value['fee'])  
+        new_fee = Fees(key, value['unit'], value['fee'], value['weight'])  
         session.add(new_fee)
     session.commit()
 
     for city in cities:
         new_city = City(city)
         session.add(new_city)
+    session.commit()
+
+    new_employee = Employee(root_user, root_password)
+    session.add(new_employee)
     session.commit()

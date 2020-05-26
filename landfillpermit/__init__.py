@@ -1,9 +1,20 @@
 import os
+from bcrypt import bcrypt
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
 load_dotenv()
 
+# Set root user info for web application
+root_user = ""
+root_password = ""
+if os.getenv('ROOT_USER'):
+    root_user = os.getenv('ROOT_USER')
+
+if os.getenv('ROOT_PASSWORD'):
+    root_password = bcrypt.generate_password_hash(os.getenv('ROOT_PASSWORD')).decode('utf-8')
+
+# Setup DB connection
 db_url = os.getenv('DB_TYPE')
 db_path = os.getenv('DB_PATH')
 db_name = os.getenv('DB_NAME')
@@ -26,8 +37,15 @@ if os.getenv('DB_USER'):
 db_url += db_path
 db_url += "/" + db_name
 
+tls_cert = os.getenv('DB_TLS_CERT')
+if tls_cert:
+    db_url += "?ssl_ca=" + os.path.join(os.getcwd(), 'landfillpermit/', tls_cert)
+    print(db_url)
+
 engine = create_engine(db_url)
 
+
+#Setup mailgun info
 mg_domain = os.getenv('MG_DOMAIN')
 if not mg_domain:
     raise ValueError('please set environmental variable MG_DOMAIN to your Mailgun domain')
