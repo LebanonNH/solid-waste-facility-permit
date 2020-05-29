@@ -6,21 +6,26 @@ provider:
     - apiKey
   stage: dev
   region: us-east-2
+  profile: lebanonnh.gov
+  tags:
+    project: solid-waste-permit
+    department: DPW
   memorySize: 256
-  # vpc:
-  #   securityGroupIds:
-  #     - sg-0902c3c2a4a96394b
-  #   subnetIds:
-  #     - subnet-32bbd17f
-  #     - subnet-de6a9eb6
-  #     - subnet-c8664cb3
+  vpc:
+    securityGroupIds:
+      - sg-0ba4d0ef536c0d40e
+    subnetIds:
+      - subnet-0a91d5483073c2489
   environment:
-    DB_PATH: 'landfill-permit.cmu6qepwg8ma.us-east-2.rds.amazonaws.com'
+    DB_PATH: 'lebanonnh-solid-waste-facility.cluster-cpmhmrzcfub1.us-east-2.rds.amazonaws.com'
     DB_NAME: 'landfill'
     DB_TYPE: 'mysql'
     DB_DRIVER: 'pymysql'
-    DB_USER: 'landfill'
+    DB_USER: 'admin'
+    DB_TLS_CERT: 'AmazonRootCA1.pem'
     MG_DOMAIN: 'mg.leblibrary.com'
+    DB_PASS: ${ssm:/DB_PASS~true}
+    MG_API_KEY: ${ssm:/MG_API_KEY~true}
 
 
 package:

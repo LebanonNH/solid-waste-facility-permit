@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine, ForeignKey
-from sqlalchemy import Column, Date, BigInteger, Integer, String, DateTime, Numeric
+from sqlalchemy import Column, Date, BigInteger, Integer, String, DateTime, Numeric, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, backref
 from landfillpermit.data import fees, cities
@@ -34,11 +34,11 @@ class User(Base):
     first_name = Column(String(40), nullable=False)
     last_name = Column(String(40), nullable=False)
     city_id = Column(Integer, ForeignKey("city.id"), nullable=False)
-    email = Column(db.String(80), nullable=False)
+    email = Column(String(80), nullable=False)
     transactions = relationship("Transactions")
 
     #----------------------------------------------------------------------
-    def __init__(self, barcode, expiration_date, first_name, last_name, email, city_id):
+    def __init__(self, barcode, expiration_date, first_name, last_name, city_id, email):
         """"""
         self.barcode = barcode
         self.expiration_date = expiration_date
@@ -56,15 +56,15 @@ class Fees(Base):
     name = Column(String(120), nullable=False)
     weight = Column(Numeric, default=200, nullable=False)
     unit_of_measure = Column(String(40))
-    fees_per_unit = Column(Numeric, nullable=False)
+    fees_per_unit = Column(Numeric(precision=10, scale=2), nullable=False)
     fees = relationship("Transactions_Fees")
 
     #----------------------------------------------------------------------
-    def __init__(self, name, unit_of_measure="", fees_per_unit, weight=200):
+    def __init__(self, name, fees_per_unit, unit_of_measure="", weight=200):
         """"""
         self.name = name
-        self.unit_of_measure = unit_of_measure
         self.fees_per_unit = fees_per_unit
+        self.unit_of_measure = unit_of_measure
         self.weight=weight
 
 
@@ -101,17 +101,19 @@ class Transactions_Fees(Base):
 
 class Employee(Base):
     """"""
-    __tablename__ = "transactions_fees"
+    __tablename__ = "employees"
  
     id = Column(Integer, primary_key=True)
     username = Column(String(120), unique=True, nullable=False)
     password = Column(String(60), nullable=False)
+    is_admin = Column(Boolean, default=False)
     
     #----------------------------------------------------------------------
-    def __init__(self, username, password):
+    def __init__(self, username, password, is_admin=False):
         """"""
         self.username = username
         self.password = password
+        self.is_admin = is_admin
 
 # create tables
 def create_db():
@@ -121,7 +123,7 @@ def create_db():
 def populate_data():
 
     for key, value in fees.items():
-        new_fee = Fees(key, value['unit'], value['fee'], value['weight'])  
+        new_fee = Fees(name=key, fees_per_unit=value['fee'], unit_of_measure=value['unit'], weight=value['weight'])  
         session.add(new_fee)
     session.commit()
 
@@ -130,6 +132,6 @@ def populate_data():
         session.add(new_city)
     session.commit()
 
-    new_employee = Employee(root_user, root_password)
+    new_employee = Employee(username=root_user, password=root_password)
     session.add(new_employee)
     session.commit()

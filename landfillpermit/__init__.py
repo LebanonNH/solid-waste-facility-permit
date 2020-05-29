@@ -1,5 +1,5 @@
 import os
-from bcrypt import bcrypt
+import bcrypt
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
@@ -12,7 +12,7 @@ if os.getenv('ROOT_USER'):
     root_user = os.getenv('ROOT_USER')
 
 if os.getenv('ROOT_PASSWORD'):
-    root_password = bcrypt.generate_password_hash(os.getenv('ROOT_PASSWORD')).decode('utf-8')
+    root_password = bcrypt.hashpw(str.encode(os.getenv('ROOT_PASSWORD')), bcrypt.gensalt())
 
 # Setup DB connection
 db_url = os.getenv('DB_TYPE')

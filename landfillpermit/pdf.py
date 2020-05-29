@@ -38,7 +38,7 @@ class Citizen():
         else:
             return query.city_name 
 
-    def add_to_db(self, barcode = None, city = None, expiration = None, first_name = None, surname = None):
+    def add_to_db(self, barcode = None, city = None, expiration = None, first_name = None, email=None, surname = None):
         if barcode == None:
             barcode = self.barcode 
         if city == None:
@@ -49,12 +49,16 @@ class Citizen():
             first_name = self.first_name 
         if surname == None:
             surname = self.surname
+        if email == None:
+            email = self.email
         query = session.query(User).filter(User.barcode == self.barcode).first()
+
         if query:
             raise ValueError("User has already exists database")
+        
         city_id = session.query(City).filter(City.city_name == self.city.title()).first().id 
         expiration_date = datetime.datetime.strptime(self.expiration, "%m-%d-%Y")
-        new_user = User(self.barcode, expiration_date, self.first_name, self.surname, city_id)
+        new_user = User(barcode, expiration_date, first_name, surname, city_id, email)
 
         session.add(new_user)
         print("New user added to session")
